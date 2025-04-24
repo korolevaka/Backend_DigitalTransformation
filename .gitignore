@@ -14,7 +14,7 @@ __pycache__/
 *.tmp
 *.bak
 
-config.properties
+.env
 
 External Libraries/
 
