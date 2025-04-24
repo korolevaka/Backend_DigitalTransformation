@@ -1,0 +1,21 @@
+.venv/
+venv/
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.idea/
+.vscode/
+*.swp
+*.swo
+
+*.log
+*.tmp
+*.bak
+
+config.properties
+
+External Libraries/
+
+Scratches and Consoles/
