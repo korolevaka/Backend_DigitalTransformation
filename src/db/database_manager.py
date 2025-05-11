@@ -1,7 +1,12 @@
+from datetime import datetime
+from xml.sax import parse
+
+from aiogram.enums import Currency
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from src.db.models import Player, Session, SessionPlayer, GameResult, PlayerStatistics, \
-    SessionLocal, Image
+    SessionLocal, CaseRequirement, GameCurrency, Tool, ManagementCard, Role, Image
 
 db = SessionLocal()
 
@@ -34,7 +39,6 @@ def create_room(password):
 def get_player(player_id: int) -> Player:
     """Получить игрока по id"""
     return db.query(Player).filter(Player.player_id == player_id).first()
-
 
 def get_player_by_login(login: str) -> Player:
     """Получить игрока по login"""
@@ -121,6 +125,86 @@ def delete_player(player_id: int):
         db.commit()
     else:
         raise ValueError(f"Player with ID {player_id} not found.")
+
+
+def get_session_players(session_id: int) -> list[SessionPlayer]:
+    return db.query(SessionPlayer).filter(SessionPlayer.session_id == session_id).all()
+
+
+def get_session_player(session_id: int, player_id: int) -> SessionPlayer:
+    return db.query(SessionPlayer).filter(SessionPlayer.session_id == session_id, SessionPlayer.player_id == player_id).first()
+
+
+def get_case(session_id: int) -> CaseRequirement:
+    session = db.query(Session).filter(Session.session_id == session_id).first()
+    case_id = session.case_id
+    return db.query(CaseRequirement).filter(CaseRequirement.case_id == case_id).first()
+
+
+def get_currency(session_id: int) -> GameCurrency:
+    return db.query(GameCurrency).filter(GameCurrency.session_id == session_id).first()
+
+
+def get_tool(tool_id) -> Tool:
+    return db.query(Tool).filter(Tool.tool_id == tool_id).first()
+
+
+def get_management_card(card_id: int) -> ManagementCard:
+    return db.query(ManagementCard).filter(ManagementCard.card_id == card_id).first()
+
+
+def update_game_score(
+        session_id: int,
+        it_points: int,
+        hr_points: int,
+        ec_points: int,
+        bp_points: int
+) -> GameResult:
+    score = db.query(GameResult).filter(GameResult.session_id == session_id).first()
+    if score:
+        score.total_it_points = GameResult.total_it_points + it_points
+        score.total_hr_points = GameResult.total_it_points + hr_points
+        score.total_ec_points = GameResult.total_it_points + ec_points
+        score.total_bp_points = GameResult.total_it_points + bp_points
+        db.commit()
+        db.refresh(score)
+    else:
+        raise ValueError(f"Score for session {session_id} not found.")
+    return score
+
+
+def check_requirements(session_id: int) -> bool:
+    case = get_case(session_id)
+    score = db.query(GameResult).filter(GameResult.session_id == session_id).first()
+    if score:
+        if (
+        score.total_it_points >= case.required_it_points and
+        score.total_hr_points >= case.required_hr_points and
+        score.total_ec_points >= case.required_ec_points and
+        score.total_bp_points >= case.required_bp_points
+    ):
+            score.is_successful = True
+            score.end_time = datetime.now()
+            db.commit()
+            db.refresh(score)
+            return True
+        else:
+            return False
+    else:
+        raise ValueError(f"Score for session {session_id} not found.")
+
+def get_roles() -> list[Role]:
+    return db.query(SessionPlayer).all()
+
+def set_player_role(session_id: int, player_id: int, role: str) -> None:
+    player = db.query(SessionPlayer).filter(SessionPlayer.session_id == session_id, SessionPlayer.player_id == player_id).first()
+    if player:
+        player.role = role
+
+def set_player_character(session_id: int, player_id: int, character: bool) -> None:
+    player = db.query(SessionPlayer).filter(SessionPlayer.session_id == session_id, SessionPlayer.player_id == player_id).first()
+    if player:
+        player.is_positive = character
 
 
 # def validate_room_password(room_id, password):
