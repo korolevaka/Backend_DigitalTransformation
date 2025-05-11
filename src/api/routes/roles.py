@@ -1,6 +1,6 @@
 from random import shuffle
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 import src.db.database_manager as db
 from src.api.dto.roles import Role, Character
@@ -10,7 +10,8 @@ router = APIRouter()
 
 
 @router.get("/roles/")
-def get_roles(room_id: int) -> list[Role]:
+def get_roles(room_id: int = Query(..., description="ID комнаты")) -> list[Role]:
+    """Получить роли пользователей"""
     data = db.get_session_players(session_id=room_id)
     if not data[0].role:
         shuffle_roles(data)
@@ -22,8 +23,8 @@ def get_roles(room_id: int) -> list[Role]:
 
 
 @router.post("/characters/")
-def get_character(room_id: int, user_id: int):
-    """Get character of specified user"""
+def get_character(room_id: int = Query(..., description="ID комнаты"), user_id: int = Query(..., description="ID пользователя")):
+    """Получить характер пользователя"""
     data = db.get_session_player(session_id=room_id, player_id=user_id)
     result = Character(player_id=data.player_id, character=data.is_positive)
     return result
@@ -37,8 +38,8 @@ def shuffle_roles(room_id, players: list[SessionPlayer]):
 
 
 @router.post("/characters/")
-def set_character(room_id: int):
-    """Get character of specified user"""
+def set_character(room_id: int = Query(..., description="ID комнаты")):
+    """Установить характеры пользователей"""
     characters = [True, True, True, True, True, True, False, False, False, False]
     players = db.get_session_players(room_id)
     shuffle(characters)

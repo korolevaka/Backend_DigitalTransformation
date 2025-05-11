@@ -1,20 +1,20 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 import src.db.database_manager as db
 from src.api.dto.cards import Case, Balance, Score, Result
 
 router = APIRouter()
 
 
-@router.get('/tool')
-async def use_tool(room_id: int, card_id: int) -> Result:
-    """General director selects which instrument to buy this turn"""
+@router.post('/tool')
+async def use_tool(room_id: int = Query(..., description="ID комнаты"), card_id: int = Query(..., description="ID карточки")) -> Result:
+    """Генеральный директор выбирает какой инструмент купить в этом раунде"""
     card = db.get_tool(tool_id=card_id)
     return await use_card(card.it_points, card.hr_points, card.ec_points, card.bp_points, room_id)
 
 
-@router.get('/management')
-async def use_management_card(room_id: int, card_id: int) -> Result:
-    """Governor applies policy"""
+@router.post('/management')
+async def use_management_card(room_id: int = Query(..., description="ID комнаты"), card_id: int = Query(..., description="ID карточки")) -> Result:
+    """Губернатор применяет карту управления"""
     card = db.get_management_card(card_id=card_id)
     return await use_card(card.it_effect, card.hr_effect, card.ec_effect, card.bp_effect, room_id)
 
@@ -39,15 +39,16 @@ async def use_card(it, hr, ec, bp, room_id):
 
 
 @router.get('/dtc')
-async def get_dtc(room_id: int):
-    """Get current amount of dtc"""
+async def get_dtc(room_id: int = Query(..., description="ID комнаты")):
+    """Получить нынешний баланс DTC"""
     data = db.get_currency(session_id=room_id)
     dtc = Balance(dtc=data.remains)
     return dtc
 
 
 @router.get('/case')
-async def get_case(room_id: int) -> Case:
+async def get_case(room_id: int = Query(..., description="ID комнаты")) -> Case:
+    """Получить требования по очкам нынешнего кейса"""
     data = db.get_case(session_id=room_id)
     case = Case(
         required_it_points=data.required_it_points,
