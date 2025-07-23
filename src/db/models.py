@@ -1,8 +1,9 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Float, DateTime, LargeBinary, \
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, DateTime, LargeBinary, \
     BigInteger
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
+from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 import os
 
@@ -10,9 +11,26 @@ load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 Base = declarative_base()
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine)
+engine = create_async_engine(DATABASE_URL)
+AsyncSessionLocal = sessionmaker(bind=engine)
 
+
+# # Настройка SSL-контекста
+# ssl_context = ssl.create_default_context()
+# ssl_context.check_hostname = False
+# ssl_context.verify_mode = ssl.CERT_NONE
+#
+# ssl_context.load_verify_locations(cafile="путь r ca")
+#
+# engine = create_async_engine(
+#     DATABASE_URL,
+#     echo=True,
+#     connect_args={"ssl_disabled": True}
+# )
+#
+# AsyncSessionLocal = sessionmaker(
+#     engine, expire_on_commit=False, class_=AsyncSession
+# )
 
 class Image(Base):
     __tablename__ = 'images'
@@ -21,11 +39,16 @@ class Image(Base):
     name = Column(String(255), nullable=False)
     image_data = Column(LargeBinary, nullable=False)
 
+class Department(Base):
+    __tablename__ = 'departments'
+    department_id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+
 class Role(Base):
     __tablename__ = 'roles'
     role_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
-
+    department_id = Column(Integer, ForeignKey('departments.department_id'), nullable=True)
 
 class Player(Base):
     __tablename__ = 'players'
@@ -38,6 +61,8 @@ class Player(Base):
 class CaseRequirement(Base):
     __tablename__ = 'case_requirements'
     case_id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    description = Column(String(1000), nullable=True)
     required_it_points = Column(Integer)
     required_hr_points = Column(Integer)
     required_ec_points = Column(Integer)
@@ -57,7 +82,7 @@ class SessionPlayer(Base):
     __tablename__ = 'session_players'
     session_id = Column(Integer, ForeignKey('sessions.session_id'), primary_key=True)
     player_id = Column(Integer, ForeignKey('players.player_id'), primary_key=True)
-    role = Column(String(50), nullable=False)
+    role_id = Column(Integer, ForeignKey('roles.role_id'))
     is_positive = Column(Boolean)
 
 
@@ -71,17 +96,20 @@ class Tool(Base):
     __tablename__ = 'tools'
     tool_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
+    description = Column(String(1000), nullable=True)
     cost = Column(Integer, nullable=False)
     it_points = Column(Integer)
     hr_points = Column(Integer)
     ec_points = Column(Integer)
     bp_points = Column(Integer)
+    department_id = Column(Integer, ForeignKey('departments.department_id'))
 
 
 class ManagementCard(Base):
     __tablename__ = 'management_cards'
     card_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
+    description = Column(String(1000), nullable=True)
     it_effect = Column(Integer)
     hr_effect = Column(Integer)
     ec_effect = Column(Integer)
@@ -113,4 +141,6 @@ class PlayerStatistics(Base):
     average_bp_points = Column(Float, default=0)
 
 
-Base.metadata.create_all(engine)
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
